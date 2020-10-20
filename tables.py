@@ -75,6 +75,7 @@ class ExampleProgram:
                         batch_trackpoints.append({"activity_id":activity_id, "lat": latitude, "lon":longitude, "altitude": altitude, "date_days": days, "date_time": date})
 
                     activity_id += 1
+        # Avoid adding activities when none meets conditions
         if(activity_docs!=[]):
             collection = self.db["Activity"]
             collection.insert_many(activity_docs)
@@ -123,25 +124,18 @@ class ExampleProgram:
 def main():
     program = None
     try:
-        program = ExampleProgram()        
-        # program.drop_coll(collection_name="Activity")
-        # program.drop_coll(collection_name="TrackPoint")
-        # program.drop_coll(collection_name="User")
-
+        program = ExampleProgram()    
+        # Code to insert data into db    
         # program.create_coll(collection_name="User")
         # program.create_coll(collection_name="Activity")
         # program.create_coll(collection_name="TrackPoint")
+        # program.insert_users()
+        # activity_id = 1
+        # for id in program.ids:
+        #     print("id changed ------------------------->", id)
+        #     transp = program.transportation(user_id = id)
+        #     activity_id = program.insert_activities_and_trackpoints(user_id = id, transportation = transp, activity_id_start = activity_id)
 
-        program.show_coll()
-        program.insert_users()
-        #program.fetch_documents(collection_name="User")
-        activity_id = 1
-        for id in program.ids:
-            print("id changed ------------------------->", id)
-            transp = program.transportation(user_id = id)
-            activity_id = program.insert_activities_and_trackpoints(user_id = id, transportation = transp, activity_id_start = activity_id)
-
-        # Check that the table is dropped
         program.show_coll()
     except Exception as e:
         print("ERROR: Failed to use database:", e)
