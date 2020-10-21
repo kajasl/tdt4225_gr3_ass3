@@ -299,8 +299,8 @@ def main():
         # program.find_taxi_users()
 
         #task 2.6
-        program.find_year_most_activities()
-        program.find_year_most_activities_hours()
+        # program.find_year_most_activities()
+        # program.find_year_most_activities_hours()
         
 
         #task 2.8
