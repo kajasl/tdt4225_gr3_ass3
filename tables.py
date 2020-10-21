@@ -1,6 +1,8 @@
 from pprint import pprint 
 from DbConnector import DbConnector
+from datetime import datetime
 import os
+
 
 
 class ExampleProgram:
@@ -118,6 +120,156 @@ class ExampleProgram:
     def show_coll(self):
         collections = self.client['assignment3'].list_collection_names()
         print(collections)
+
+    def update_to_iso_date(self):
+        collection = self.db["Activity"]
+        collection.update_many({}, [{
+            '$set':
+                {
+                    'start_date_time':
+                        {
+                            '$dateFromString':
+                                {
+                                    'dateString': '$start_date_time',
+                                    'format': '%Y%m%d%H%M%S'
+                                }
+                        },
+                    'end_date_time':
+                        {
+                            '$dateFromString':
+                                {
+                                    'dateString': '$end_date_time',
+                                    'format': '%Y%m%d%H%M%S'
+                                }
+                        }
+                }
+        }])
+
+        collection2 = self.db['TrackPoint']
+        collection2.update_many({}, [{
+            '$set':
+                {
+                    'date_time':
+                        {
+                            '$dateFromString':
+                                {
+                                    'dateString': '$date_time',
+                                    'format': '%Y%m%d%H%M%S'
+                                }
+                        }
+                }
+        }])
+
+
+    #task 1
+    def first_ten_rows(self):
+        collection1 = self.db["User"].find({}).limit(10)
+        collection2 = self.db["Activity"].find({}).limit(10)
+        collection3 = self.db["TrackPoint"].find({}).limit(10)
+        print("Users ----------->")
+        for doc in collection1: 
+            print(doc)
+        print("Activities ----------->")
+        for doc in collection2: 
+            print(doc)
+        print("Trackpoints ----------->")
+        for doc in collection3: 
+            print(doc)
+
+    #task 2.2
+    def average_activities(self):
+        activities = self.db["Activity"]
+        users = self.db["User"]
+
+        activities_count = activities.find({}).count()
+        users_count = users.find({}).count()
+        print("Average activities for a user is: " + str(round(activities_count / users_count)))
+
+    #task 2.4
+    def find_taxi_users(self):
+        activity_table = self.db["Activity"]
+        taxi_activities = activity_table.aggregate([
+            {'$match': {'transportation_mode': 'taxi'} },
+            {'$group': {'_id': '$user_id'} },
+            {'$sort': {'_id': 1} }
+        ])
+        print("Taxi users:")
+        for activity in taxi_activities:
+            print(activity)
+
+    #task 2.6a
+    def find_year_most_activities(self):
+        activity_years = self.db["Activity"].aggregate([
+            {
+                '$group': 
+                    {
+                        '_id': {'$year': '$start_date_time'},
+                        'count': {'$sum' : 1}
+                    }
+            },
+            {
+                '$sort':
+                    {
+                        'count': -1
+                    }
+
+            },
+            {
+                '$limit': 1
+            }
+            
+        ])
+        print("year with most activities:")
+        for activity_year in activity_years:
+            pprint(activity_year)
+
+    #task 2.6b
+    def find_year_most_activities_hours(self):
+        activity_years = self.db["Activity"].aggregate([
+            {
+                '$addFields':
+                    {
+                        'hours':
+                            {
+                                '$divide':
+                                    [
+                                        {'$subtract': ['$end_date_time', '$start_date_time']},
+                                        3600000
+                                    ]
+                            }
+                    }
+            },
+            {
+                '$group': 
+                    {
+                        '_id': {'$year': '$start_date_time'},
+                        'sum_hours':
+                            {
+                                '$sum': '$hours'
+                            }
+                    }
+            },
+            {
+                '$sort':
+                    {
+                        'sum_hours': -1
+                    }
+
+            }
+            
+        ])
+        print("years with most activity hours descending:")
+        for activity_year in activity_years:
+            pprint(activity_year)
+
+    #finds all transportation activities with transportationmodes != none
+    def findtransp(self):
+        activity_table = self.db["Activity"].aggregate([
+            {'$match': {'transportation_mode': {'$ne': 'none'} } }
+        ])
+        
+        for activity in activity_table:
+            pprint(activity)
          
 
 
@@ -135,6 +287,26 @@ def main():
         #     print("id changed ------------------------->", id)
         #     transp = program.transportation(user_id = id)
         #     activity_id = program.insert_activities_and_trackpoints(user_id = id, transportation = transp, activity_id_start = activity_id)
+        #program.update_to_iso_date()
+        #task 1
+        # program.first_ten_rows()
+
+
+        #task 2.2
+        # program.average_activities()
+
+        #task 2.4
+        # program.find_taxi_users()
+
+        #task 2.6
+        program.find_year_most_activities()
+        program.find_year_most_activities_hours()
+        
+
+        #task 2.8
+
+        #task 2.10
+        
 
         program.show_coll()
     except Exception as e:
