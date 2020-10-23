@@ -286,6 +286,57 @@ class ExampleProgram:
         for activity_year in activity_years:
             pprint(activity_year)
 
+    #task 2.8
+    def find_top_twenty_gained_altitude(self):
+        activity_table = self.db["Activity"].aggregate([
+            {
+                '$match': 
+                    {
+                        'transportation_mode': {'$ne': 'none'} 
+                    }
+            },
+            {
+                '$lookup':
+                    {
+                        'from': 'TrackPoint',
+                        'localField': '_id',
+                        'foreignField': 'activity_id',
+                        'as': 'TrackPoints'
+
+                    }
+            },
+            {
+                '$project':
+                    {
+                        'TrackPoints.altitude': 1,
+                        'user_id': 1
+                    }
+            }
+            # {
+            #     '$limit': 10
+            # }
+
+
+        ])
+        user_altitudes = {}
+        for activity in activity_table:
+
+            activity_trackpoints = activity['TrackPoints']
+            #only care about those who have gained altitude
+            altitude_gained = 0.0
+
+            for i in range(len(activity_trackpoints)-1):
+                if activity_trackpoints[i]['altitude'] != '-777':
+                    if float(activity_trackpoints[i]['altitude']) < float(activity_trackpoints[i + 1]['altitude']):
+                        altitude_gained += float(activity_trackpoints[i + 1]['altitude']) - float(activity_trackpoints[i]['altitude'])
+
+            user_altitudes[activity['user_id']] = user_altitudes.get(activity['user_id'], 0) + altitude_gained
+        print(user_altitudes)
+
+        top_twenty_users = {k: v for k, v in sorted(user_altitudes.items(), key=lambda item: item[1], reverse=True)[0:20]}   
+        print(top_twenty_users)
+
+
     #finds all transportation activities with transportationmodes != none
     def findtransp(self):
         activity_table = self.db["Activity"].aggregate([
@@ -388,8 +439,8 @@ def main():
         # program.find_year_most_activities()
         # program.find_year_most_activities_hours()
         
-
         #task 2.8
+        #program.find_top_twenty_gained_altitude()
 
         #task 2.9
         #program.find_invalid_activities()
