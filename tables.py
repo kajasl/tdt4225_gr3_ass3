@@ -2,6 +2,9 @@ from pprint import pprint
 from DbConnector import DbConnector
 from datetime import datetime
 import os
+from haversine import haversine
+from tabulate import tabulate
+
 
 
 
@@ -197,6 +200,24 @@ class ExampleProgram:
         for activity in taxi_activities:
             print(activity)
 
+    #task 2.5
+    def find_transportation_modes(self):
+        act= self.db["Activity"].aggregate([
+            {'$match': {'transportation_mode': {'$ne': 'none'} } },
+            { '$unwind': '$transportation_mode' },
+            {
+                '$group': {
+                    '_id': {
+                        'transportation_mode': '$transportation_mode',
+
+                    },
+                    'count': {'$sum': 1}
+                }
+            }
+        ])
+        for transp_mode in act:
+            pprint(transp_mode)
+        
     #task 2.6a
     def find_year_most_activities(self):
         activity_years = self.db["Activity"].aggregate([
@@ -262,12 +283,66 @@ class ExampleProgram:
         for activity_year in activity_years:
             pprint(activity_year)
 
+    #task 2.7
+    def find_km_walked_in_2008(self):
+        act_ids= self.db["Activity"].aggregate([
+            {'$match': {'transportation_mode': 'walk', 'user_id': '112' } },
+            {'$group': {'_id': '$_id'}}
+        ])
+        id_list=[]
+        for id in act_ids:
+            id_list.append(id["_id"])
+
+        trackpoints= self.db['TrackPoint'].find({ 'activity_id': {'$in': id_list}}, {'_id': 0, 'activity_id': 0, 'altitude': 0, 'date_days': 0, 'date_time': 0})
+
+        lat_lon =[]
+        for track in trackpoints:
+            lat = float(track['lat'])
+            lon = float(track['lon'])
+            lat_lon.append([lat, lon])
+
+        sum_distance = 0
+        for i in range(1, len(lat_lon)):
+            sum_distance += haversine(lat_lon[i-1], lat_lon[i])
+        #assume metric values
+        print("User 112 in the year 2008 has walked: " + str("%.1f" % sum_distance) + "KM")
+
+    #task 2.11
+    def most_used_transportation_mode(self):
+        all_ids=[]
+        for id in self.labeled_ids:
+            fav_transp = self.db["Activity"].aggregate([
+                {'$match': {'user_id': id, 'transportation_mode': {'$ne': 'none'}}},
+                {
+                    '$group': {
+                        '_id': { 'user_id': '$user_id', 'transportation_mode': '$transportation_mode'},
+                        'count': {'$sum': 1}
+                    },   
+                },
+                {
+                    '$sort':{
+                        'count': -1
+                    }
+                },
+                {
+                    '$limit': 1
+                }
+    
+            ])
+        
+            for i in fav_transp:
+                id=i['_id']['user_id']
+                transp = i['_id']['transportation_mode']
+                all_ids.append([id, transp])
+
+        print(tabulate(all_ids))
+
+
     #finds all transportation activities with transportationmodes != none
     def findtransp(self):
         activity_table = self.db["Activity"].aggregate([
             {'$match': {'transportation_mode': {'$ne': 'none'} } }
         ])
-        
         for activity in activity_table:
             pprint(activity)
          
@@ -288,9 +363,9 @@ def main():
         #     transp = program.transportation(user_id = id)
         #     activity_id = program.insert_activities_and_trackpoints(user_id = id, transportation = transp, activity_id_start = activity_id)
         #program.update_to_iso_date()
+
         #task 1
         # program.first_ten_rows()
-
 
         #task 2.2
         # program.average_activities()
@@ -298,17 +373,24 @@ def main():
         #task 2.4
         # program.find_taxi_users()
 
+        # task 2.5
+        # program.find_transportation_modes()
+        
         #task 2.6
         # program.find_year_most_activities()
         # program.find_year_most_activities_hours()
         
+        #task 2.7
+        #program.find_km_walked_in_2008()
 
         #task 2.8
 
         #task 2.10
         
+        #task 2.11
+        program.most_used_transportation_mode()
 
-        program.show_coll()
+        #program.show_coll()
     except Exception as e:
         print("ERROR: Failed to use database:", e)
     finally:
