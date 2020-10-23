@@ -1,6 +1,7 @@
 from pprint import pprint 
 from DbConnector import DbConnector
-from datetime import datetime
+from datetime import datetime, timedelta
+from bson.objectid import ObjectId
 import os
 from haversine import haversine
 from tabulate import tabulate
@@ -15,7 +16,7 @@ class ExampleProgram:
         self.client = self.connection.client
         self.db = self.connection.db
         self.ids = os.listdir("dataset/dataset/Data")
-        self.labeled_ids = open("dataset/dataset/labeled_ids.txt", "r").read().splitlines()
+        self.labeled_ids = open(r"dataset\dataset\labeled_ids.txt", "r").read().splitlines()
 
     def create_coll(self, collection_name):
         collection = self.db.create_collection(collection_name)    
@@ -179,6 +180,19 @@ class ExampleProgram:
         for doc in collection3: 
             print(doc)
 
+    #task 2.1
+    def count_db(self):
+        activities = self.db["Activity"]
+        users = self.db["User"]
+        trackpoints = self.db["TrackPoint"]
+
+        users_count = users.count()
+        activities_count = activities.count()
+        trackpoints_count = trackpoints.count()
+
+        print("There are",users_count,"users,",activities_count,"activities and",trackpoints_count,"trackpoints inserted in the database.")
+
+
     #task 2.2
     def average_activities(self):
         activities = self.db["Activity"]
@@ -187,6 +201,16 @@ class ExampleProgram:
         activities_count = activities.find({}).count()
         users_count = users.find({}).count()
         print("Average activities for a user is: " + str(round(activities_count / users_count)))
+
+    #task 2.3
+    def find_users_with_most_activities(self):
+        activities = self.db["Activity"]
+        top_users = activities.aggregate([
+            { '$unwind': "$user_id" },  { '$sortByCount': "$user_id" }, {'$limit': 20}
+        ]
+        )
+        for user in top_users:
+            print(user)  
 
     #task 2.4
     def find_taxi_users(self):
@@ -353,6 +377,64 @@ class ExampleProgram:
         top_twenty_users = {k: v for k, v in sorted(user_altitudes.items(), key=lambda item: item[1], reverse=True)[0:20]}   
         print(top_twenty_users)
 
+    #task 2.9        
+    def find_invalid_activities(self):
+        trackpoints = self.db["TrackPoint"]
+        activities = trackpoints.aggregate([
+            {'$group': {
+                '_id':'$activity_id',
+                'timeArr': {'$push':'$date_time'}
+                }
+            }
+        ],allowDiskUse=True)
+
+
+
+        invalids = []
+        for activity in activities:
+            trackpoints = activity['timeArr']
+            for i in range(1,len(trackpoints)):
+                time_diff = (trackpoints[i-1]-trackpoints[i]) / timedelta(minutes=1)
+                if(time_diff < 5):
+                    invalids.append(activity["_id"])
+                    break
+        activities = self.db["Activity"]
+        
+        invalid_users = activities.aggregate([
+            {'$match': {'_id': {'$in': invalids}}},
+            {'$group': {
+                '_id': "$user_id",
+                'count': { '$sum': 1 }
+
+            }}
+        ]).count()
+
+        print(invalid_users)        
+
+    #task 2.10
+    def users_in_forbidden_city(self):
+        trackpoints = self.db["TrackPoint"]
+        users = trackpoints.aggregate([
+            {'$project': {
+                '_id': 1,
+                'user_id': 1,
+                'activity_id': 1,
+                'lat': {'$round': [{'$toDouble':'$lat'},3]},
+                'lon': {'$round': [{'$toDouble':'$lon'},3]}  
+            }
+            },
+            {'$match': {'$and': [{'lat': 39.916}, {'lon': 116.397}]}},
+            {'$lookup': {
+                'from':'Activity',
+                'localField': 'activity_id',
+                'foreignField':'_id',
+                'as':'activity_id' 
+            }}
+        ])
+
+        for user in users:
+            pprint(user)
+ 
     #task 2.11
     def most_used_transportation_mode(self):
         all_ids=[]
@@ -384,16 +466,6 @@ class ExampleProgram:
         print(tabulate(all_ids))
 
 
-    #finds all transportation activities with transportationmodes != none
-    def findtransp(self):
-        activity_table = self.db["Activity"].aggregate([
-            {'$match': {'transportation_mode': {'$ne': 'none'} } }
-        ])
-        for activity in activity_table:
-            pprint(activity)
-         
-
-
 def main():
     program = None
     try:
@@ -413,13 +485,19 @@ def main():
         #task 1
         # program.first_ten_rows()
 
+        #task 2.1
+        # program.count_db()
+
         #task 2.2
         # program.average_activities()
-
+        
+        #task 2.3
+        # program.find_users_with_most_activities()
+        
         #task 2.4
         # program.find_taxi_users()
 
-        # task 2.5
+        #task 2.5
         # program.find_transportation_modes()
         
         #task 2.6
@@ -430,10 +508,14 @@ def main():
         # program.find_km_walked_in_2008()
 
         #task 2.8
-        program.find_top_twenty_gained_altitude()
-        
+        # program.find_top_twenty_gained_altitude()
+
+        #task 2.9
+        # program.find_invalid_activities()
+
         #task 2.10
-        
+        # program.users_in_forbidden_city()
+
         #task 2.11
         # program.most_used_transportation_mode()
 
