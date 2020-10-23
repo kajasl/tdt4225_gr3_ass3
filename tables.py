@@ -307,6 +307,52 @@ class ExampleProgram:
         #assume metric values
         print("User 112 in the year 2008 has walked: " + str("%.1f" % sum_distance) + "KM")
 
+
+    #task 2.8
+    def find_top_twenty_gained_altitude(self):
+        activity_table = self.db["Activity"].aggregate([
+
+            {
+                '$lookup':
+                    {
+                        'from': 'TrackPoint',
+                        'localField': '_id',
+                        'foreignField': 'activity_id',
+                        'as': 'TrackPoints'
+
+                    }
+            },            
+            {
+                '$match': 
+                    {
+                        'TrackPoints.altitude': {'$ne': '0', '$ne': '-777'} 
+                    }
+            },
+            {
+                '$project':
+                    {
+                        'TrackPoints.altitude': 1,
+                        'user_id': 1
+                    }
+            }
+
+        ])
+        user_altitudes = {}
+        for activity in activity_table:
+
+            activity_trackpoints = activity['TrackPoints']
+            #only care about those who have gained altitude
+            altitude_gained = 0.0
+
+            for i in range(len(activity_trackpoints)-1):
+                if float(activity_trackpoints[i]['altitude']) < float(activity_trackpoints[i + 1]['altitude']):
+                    altitude_gained += (float(activity_trackpoints[i + 1]['altitude']) - float(activity_trackpoints[i]['altitude']))* 0.3048
+
+            user_altitudes[activity['user_id']] = user_altitudes.get(activity['user_id'], 0) + altitude_gained
+
+        top_twenty_users = {k: v for k, v in sorted(user_altitudes.items(), key=lambda item: item[1], reverse=True)[0:20]}   
+        print(top_twenty_users)
+
     #task 2.11
     def most_used_transportation_mode(self):
         all_ids=[]
@@ -381,16 +427,17 @@ def main():
         # program.find_year_most_activities_hours()
         
         #task 2.7
-        #program.find_km_walked_in_2008()
+        # program.find_km_walked_in_2008()
 
         #task 2.8
-
+        program.find_top_twenty_gained_altitude()
+        
         #task 2.10
         
         #task 2.11
-        program.most_used_transportation_mode()
+        # program.most_used_transportation_mode()
 
-        #program.show_coll()
+        # program.show_coll()
     except Exception as e:
         print("ERROR: Failed to use database:", e)
     finally:
