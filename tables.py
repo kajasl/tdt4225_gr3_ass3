@@ -379,7 +379,7 @@ def main():
         #program.average_activities()
         
         #task 2.3
-        program.find_users_with_most_activities()
+        #program.find_users_with_most_activities()
         
         #task 2.4
         # program.find_taxi_users()
